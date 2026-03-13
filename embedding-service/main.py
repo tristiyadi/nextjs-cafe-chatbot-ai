@@ -29,7 +29,7 @@ async def embed_texts(request: EmbedRequest):
         # Generate embeddings
         # E5 model uses different logic for dense vectors depending on version, 
         # but encode() is the standard FlagModel interface.
-        vectors = model.encode(request.texts).tolist()
+        vectors = model.encode(request.texts, batch_size=32).tolist()
         return EmbedResponse(vectors=vectors)
     except Exception as e:
         import traceback

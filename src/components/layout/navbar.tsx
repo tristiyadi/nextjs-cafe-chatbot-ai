@@ -7,10 +7,21 @@ import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useCart } from "@/hooks/use-cart";
+import { useEffect, useState } from "react";
 
 export function Navbar() {
   const { data: session } = authClient.useSession();
   const pathname = usePathname();
+  const cartItems = useCart((state) => state.items);
+  const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  
+  // Mounted check to avoid hydration mismatch with local storage persistence
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const handle = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(handle);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-primary/5 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
@@ -67,8 +78,13 @@ export function Navbar() {
         <div className="flex items-center gap-4">
           {(!(session?.user as any)?.role || (session?.user as any)?.role === "customer") && (
             <Link href="/order/cart" id="cart-btn">
-              <Button variant="ghost" size="icon" className="relative rounded-2xl h-11 w-11 bg-accent/5 hover:bg-primary hover:text-white transition-all">
+              <Button variant="ghost" size="icon" className="relative rounded-2xl h-11 w-11 bg-accent/5 hover:bg-primary hover:text-white transition-all group/cart">
                 <ShoppingCart className="h-5 w-5" />
+                {mounted && totalItems > 0 && (
+                   <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-black text-white ring-2 ring-background animate-in zoom-in group-hover/cart:scale-110 transition-transform">
+                     {totalItems}
+                   </span>
+                )}
               </Button>
             </Link>
           )}

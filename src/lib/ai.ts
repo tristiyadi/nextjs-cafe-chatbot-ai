@@ -7,7 +7,8 @@ import OpenAI from "openai";
  * Configuration from environment
  */
 const LLM_TYPE = (process.env.LLM_TYPE || "ollama").toLowerCase();
-const OLLAMA_BASE_URL = process.env.LOCAL_LLM_URL || "http://localhost:11434/v1";
+const OLLAMA_BASE_URL =
+  process.env.LOCAL_LLM_URL || "http://localhost:11434/v1";
 const OLLAMA_MODEL_NAME = process.env.LOCAL_LLM_MODEL || "llama3.2:1b";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -19,7 +20,11 @@ if ((LLM_TYPE === "openai" || LLM_TYPE === "openapi") && OPENAI_API_KEY) {
   openaiClient = new OpenAI({
     apiKey: OPENAI_API_KEY,
   });
-} else if (LLM_TYPE === "ollama" || LLM_TYPE === "mistral" || LLM_TYPE === "qwen") {
+} else if (
+  LLM_TYPE === "ollama" ||
+  LLM_TYPE === "mistral" ||
+  LLM_TYPE === "qwen"
+) {
   // Use OpenAI SDK (compatible with Ollama /v1)
   openaiClient = new OpenAI({
     baseURL: OLLAMA_BASE_URL,
@@ -36,7 +41,7 @@ function getModelName() {
     case "mistral":
       return "mistral";
     case "qwen":
-      return "qwen2.5:1.5b"; 
+      return "qwen2.5:1.5b";
     default:
       return OLLAMA_MODEL_NAME;
   }
@@ -82,7 +87,7 @@ ${popularContext}
 ${searchContext ? `PENCARIAN RELEVAN:\n${searchContext}` : ""}
 
 ATURAN:
-1. Berbahasa Indonesia ramah dan santai.
+1. Jawaban harus berbahasa Indonesia ramah dan santai beserta format mata uang harus id-ID misalnya (Rp. 10.000).
 2. Jawab sesuai kategori yang diminta (misal: jika tanya 'minuman', jangan sebut 'makanan/snack').
 3. Kamu WAJIB menuliskan harga di samping nama menu (Contoh: Nama Menu (Rp10.000)).
 4. Gunakan daftar bullet (-) untuk menu baru dan berikan deskripsi singkat.
@@ -90,7 +95,7 @@ ATURAN:
 
 CONTOH FORMAT:
 - Nama Menu (Rp18.000): Deskripsi.`;
-console.log("systemPrompt: ", systemPrompt)
+  console.log("systemPrompt: ", systemPrompt);
   const messages = [
     { role: "system", content: systemPrompt },
     ...history.map((m) => ({
@@ -118,6 +123,6 @@ console.log("systemPrompt: ", systemPrompt)
     );
   } catch (error) {
     console.error("AI Error:", error);
-    return "Maaf, sedang ada kendala pada otak Kafi. Mohon coba beberapa saat lagi.";
+    return "Maaf, sedang ada kendala pada Data Kafi. Mohon coba beberapa saat lagi.";
   }
 }

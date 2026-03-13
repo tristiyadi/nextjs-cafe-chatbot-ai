@@ -1,15 +1,15 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, Loader2, Plus, ShoppingCart, Filter, Info, Star, Coffee } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Search, Plus, Star, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/use-cart";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 
 interface MenuItem {
   id: string;
@@ -31,9 +31,23 @@ export function MenuDisplay() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const addItem = useCart((state) => state.addItem);
+  const cartItems = useCart((state) => state.items);
+  const lastFetchRef = useRef<string>("");
 
-  const fetchMenu = async (query = "", category = "all") => {
+  const cartQuantities = useMemo(() => {
+    const counts: Record<string, number> = {};
+    cartItems.forEach(item => {
+      counts[item.menuItemId] = (counts[item.menuItemId] || 0) + item.quantity;
+    });
+    return counts;
+  }, [cartItems]);
+
+  const fetchMenu = useCallback(async (query = "", category = "all") => {
+    const paramsKey = `${query}-${category}`;
+    if (paramsKey === lastFetchRef.current) return;
+    
     setLoading(true);
+    lastFetchRef.current = paramsKey;
     try {
       let url = "/api/menu";
       if (query) {
@@ -50,7 +64,7 @@ export function MenuDisplay() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Initial fetch categories
@@ -59,18 +73,28 @@ export function MenuDisplay() {
       .then(data => setCategories(data.results || []));
   }, []);
 
-  // Handle debounced search and category filtering
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasInitialFetched = useRef(false);
+
   useEffect(() => {
-    setLoading(true); // Start loading UI immediately
-    const timer = setTimeout(() => {
+    if (!hasInitialFetched.current) {
+       hasInitialFetched.current = true;
+       fetchMenu(search, activeCategory);
+       return;
+    }
+
+    searchTimerRef.current = setTimeout(() => {
       fetchMenu(search, activeCategory);
     }, 500);
 
-    return () => clearTimeout(timer);
-  }, [search, activeCategory]);
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    }
+  }, [search, activeCategory, fetchMenu]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     fetchMenu(search, activeCategory);
   };
 
@@ -84,7 +108,6 @@ export function MenuDisplay() {
              className="pl-12 h-12 rounded-2xl shadow-sm border-primary/10 bg-background/50 focus-visible:ring-primary/20"
              value={search}
              onChange={(e) => setSearch(e.target.value)}
-             onBlur={() => fetchMenu(search, activeCategory)}
            />
         </form>
         
@@ -171,6 +194,14 @@ export function MenuDisplay() {
                    <Badge variant="secondary" className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider backdrop-blur-lg border-white/20 z-10">
                      {item.category?.name || "Lainnya"}
                    </Badge>
+
+                   {cartQuantities[item.id] > 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-primary/20 backdrop-blur-[2px] z-0 animate-in fade-in duration-300">
+                         <div className="bg-primary text-white h-12 w-12 rounded-full flex items-center justify-center shadow-2xl scale-110 border-4 border-background animate-in zoom-in duration-300">
+                            <span className="font-black text-lg">x{cartQuantities[item.id]}</span>
+                         </div>
+                      </div>
+                   )}
                 </div>
                 <CardHeader className="p-4 flex-1">
                   <div className="flex justify-between items-start">

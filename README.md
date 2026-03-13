@@ -66,6 +66,12 @@ We use Docker to run the database (Postgres 17), vector store (Qdrant), and spec
 docker compose up -d --build
 ```
 
+for check model installed in ollama:
+```bash
+curl http://localhost:11434/api/tags
+docker compose exec llm ollama list
+```
+
 ### 5. Initialize the Database
 Once the database container is healthy, you need to set up the tables and initial data.
 
