@@ -13,7 +13,10 @@ export async function POST(request: Request) {
     const { message, sessionId } = await request.json();
 
     if (!message) {
-      return NextResponse.json({ error: "Message is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Message is required" },
+        { status: 400 },
+      );
     }
 
     let currentSessionId = sessionId;
@@ -31,10 +34,13 @@ export async function POST(request: Request) {
 
     // 2. Create a new session if not provided
     if (!currentSessionId) {
-      const [{ id }] = await db.insert(chatSessions).values({
-        userId: session?.user?.id || null,
-        title: message.slice(0, 30) + "...",
-      }).returning({ id: chatSessions.id });
+      const [{ id }] = await db
+        .insert(chatSessions)
+        .values({
+          userId: session?.user?.id || null,
+          title: message.slice(0, 30) + "...",
+        })
+        .returning({ id: chatSessions.id });
       currentSessionId = id;
     }
 
@@ -64,13 +70,18 @@ export async function POST(request: Request) {
     // 5. Semantic Search Menu Context
     let menuContext = "";
     try {
-      const [vector] = await generateEmbeddings([message]);
+      // Prepend 'query: ' for E5 models to improve semantic search accuracy
+      const [vector] = await generateEmbeddings([`query: ${message}`]);
       const searchResults = await searchSimilarMenu(vector, 5);
 
-      const contextItems = (searchResults as Array<{ payload?: Record<string, unknown> }>)
+      console.log("searchResults: ", JSON.stringify(searchResults));
+
+      const contextItems = (
+        searchResults as Array<{ payload?: Record<string, unknown> }>
+      )
         .map((p) => {
           const payload = p.payload;
-          return `- ${payload?.name}: ${payload?.description} (Harga: Rp${payload?.price})`;
+          return `- ${payload?.name}: (Harga: Rp${payload?.price})`;
         })
         .join("\n");
 

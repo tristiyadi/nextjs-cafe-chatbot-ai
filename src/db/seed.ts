@@ -127,7 +127,7 @@ async function seed() {
     for (const item of SEED_MENU_ITEMS) {
       const categoryId = insertedCategories.find(c => c.slug === item.categorySlug)?.id;
       
-      const embeddingText = `${item.name}. ${item.description}. Kategori: ${item.categorySlug}. Harga: Rp${item.price}`;
+      const embeddingText = `passage: ${item.name}. ${item.description}. Kategori: ${item.categorySlug}. Harga: Rp${item.price}`;
       
       const [insertedItem] = await db.insert(menuItems).values({
         name: item.name,

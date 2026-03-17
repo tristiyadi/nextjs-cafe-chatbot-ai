@@ -7,11 +7,13 @@ export const qdrant = new QdrantClient({ url: qdrantUrl });
 
 export const COLLECTION_NAME = "menu_items";
 
-// Get dimension from env (used by ensureCollection)
+// Get vector dimension based on the configured TEI model
 function getVectorDimension() {
-  const type = (process.env.EMBEDDING_TYPE || "multilingual-e5").toLowerCase();
-  if (type === "bge-m3" || type === "bgm-3") return 1024;
-  return 384; // Default to multilingual-e5
+  const modelId = (process.env.EMBEDDING_MODEL_ID || "intfloat/multilingual-e5-small").toLowerCase();
+  if (modelId.includes("bge-m3")) return 1024;
+  if (modelId.includes("e5-large")) return 1024;
+  if (modelId.includes("e5-base")) return 768;
+  return 384; // Default: e5-small
 }
 
 export async function ensureCollection() {

@@ -124,7 +124,45 @@ To visualize how the AI "sees" your menu items in the vector space and test simi
 1.  Open your browser and go to **[http://localhost:6333/dashboard](http://localhost:6333/dashboard)**.
 2.  Select the `menu_items` collection.
 3.  You can browse stored points or test searches using vectors.
+### 3. how to query quadrant
 
+```
+// List all collections
+GET collections
+
+// Get collection info
+GET collections/menu_items
+
+// List points in a collection, using filter
+POST collections/menu_items/points/scroll
+{
+  "limit": 10,
+  "filter": {
+    "must": [
+      {
+        "key": "category",
+        "match": {
+          "any": ["teh", "kopi", "caffe"]
+        }
+      }
+    ]
+  }
+}
+
+POST collections/menu_items/points/search
+{
+  "vector": [],
+  "limit": 5,
+  "filter": {
+    "must": [
+      {
+        "key": "is_available",
+        "match": { "value": true }
+      }
+    ]
+  }
+}
+```
 ---
 
 ## 🚀 Key Technologies

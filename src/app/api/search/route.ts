@@ -31,8 +31,8 @@ export async function POST(request: Request) {
 
 async function doSearch(query: string, limit: number) {
   try {
-    // 1. Generate embedding for the query
-    const [vector] = await generateEmbeddings([query]);
+    // 1. Generate embedding for the query (prepend 'query: ' for E5 models)
+    const [vector] = await generateEmbeddings([`query: ${query}`]);
 
     // 2. Search Qdrant for similar menu items
     const searchResults = await searchSimilarMenu(vector, limit);

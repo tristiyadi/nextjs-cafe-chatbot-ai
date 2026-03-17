@@ -35,24 +35,24 @@ services:
       timeout: 5s
       retries: 5
 
-  # Embedding Service
+  # Embedding Service: Hugging Face Text Embedding Inference (TEI)
   embedding:
-    build:
-      context: ./embedding-service
-      dockerfile: Dockerfile
-      args:
-        - MODEL_NAME=${EMBEDDING_MODEL_ID:-intfloat/multilingual-e5-small}
-    container_name: cafe-embedding
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.7
+    container_name: cafe-tei
     restart: always
     ports:
-      - "8001:8001"
+      - "8001:80"
     environment:
-      - MODEL_NAME=${EMBEDDING_MODEL_ID:-intfloat/multilingual-e5-small}
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
+    command: --model-id ${EMBEDDING_MODEL_ID:-intfloat/multilingual-e5-small} --port 80
+    volumes:
+      - tei_cache:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   # Local LLM Service (with pre-built models)
   llm:
@@ -102,3 +102,4 @@ volumes:
   postgres_data:
   qdrant_data:
   ollama_data:
+  tei_cache:
