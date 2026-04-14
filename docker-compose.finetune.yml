@@ -1,0 +1,16 @@
+services:
+  finetune:
+    build:
+      context: ./scripts/fine-tune
+      dockerfile: Dockerfile
+    container_name: kafi-finetune
+    volumes:
+      - ./scripts/fine-tune:/workspace
+    # The essential part for Windows (Docker WSL2) to expose the GPU to the container
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

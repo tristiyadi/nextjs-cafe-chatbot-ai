@@ -1,0 +1,248 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Production Docker Compose — Kafe Nusantara
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Optimizations over docker-compose.yml (dev):
+#   - GPU passthrough (NVIDIA) for LLM and Embedding
+#   - Memory limits and reservations
+#   - Optimized TEI settings (max batch tokens, tokenization workers)
+#   - Ollama keepalive to prevent model unloading
+#   - PostgreSQL connection limits and shared buffers
+#   - Restart policies and logging limits
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: "3.8"
+
+services:
+  # ─── Database: PostgreSQL with Production Tuning ──────────────────────────
+  db:
+    image: postgres:17-alpine
+    container_name: cafe-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-password}
+      POSTGRES_DB: ${DATABASE_NAME:-cafe_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # PostgreSQL performance tuning
+    command: >
+      postgres
+        -c shared_buffers=256MB
+        -c effective_cache_size=512MB
+        -c work_mem=4MB
+        -c max_connections=100
+        -c random_page_cost=1.1
+        -c checkpoint_completion_target=0.9
+        -c wal_buffers=16MB
+        -c default_statistics_target=100
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Vector Database: Qdrant with Production Settings ─────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cafe-qdrant
+    restart: always
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__STORAGE__PERFORMANCE__OPTIMIZERS_PREFER_FASTER_SEARCH=true
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Embedding Service: HF TEI with Production Optimizations ──────────────
+  #
+  # Performance tuning:
+  #   --max-batch-tokens: Max tokens per batch (higher = more throughput, more RAM)
+  #   --max-concurrent-requests: Parallel request handling
+  #   --tokenization-workers: CPU threads for tokenization
+  #
+  # For GPU: change image tag from 'cpu-1.7' to '1.7' (CUDA version)
+  #
+  embedding:
+    image: ghcr.io/huggingface/text-embeddings-inference:${TEI_TAG:-cpu-1.7}
+    container_name: cafe-tei
+    restart: always
+    ports:
+      - "8001:80"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
+    command: >
+      --model-id ${EMBEDDING_MODEL_ID:-intfloat/multilingual-e5-small}
+      --port 80
+      --max-batch-tokens ${TEI_MAX_BATCH_TOKENS:-16384}
+      --max-concurrent-requests ${TEI_MAX_CONCURRENT:-512}
+      --tokenization-workers ${TEI_TOKENIZATION_WORKERS:-4}
+    volumes:
+      - tei_cache:/data
+    # Uncomment for GPU acceleration:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── LLM Service: Ollama with Production Optimizations ────────────────────
+  #
+  # Performance tuning:
+  #   OLLAMA_NUM_PARALLEL: Concurrent inference requests
+  #   OLLAMA_MAX_LOADED_MODELS: How many models stay in memory
+  #   OLLAMA_KEEP_ALIVE: How long model stays loaded after last request
+  #   OLLAMA_NUM_THREADS: CPU threads (set to physical core count)
+  #
+  # Quantization:
+  #   Models in Ollama are already GGUF-quantized (Q4_K_M by default).
+  #   Llama 3.2:1b Q4_K_M ≈ 700MB RAM, full precision would be ~2GB.
+  #
+  llm:
+    build:
+      context: ./llm
+      dockerfile: Dockerfile
+    container_name: cafe-llm
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      # ── Concurrency ──
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-2}
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-2}
+      # ── Memory Management ──
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
+      # ── CPU Optimization ──
+      - OLLAMA_NUM_THREADS=${OLLAMA_NUM_THREADS:-4}
+      # ── GPU (auto-detected if NVIDIA drivers available) ──
+      # - CUDA_VISIBLE_DEVICES=0
+    # Uncomment for NVIDIA GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Next.js App (Production Build) ───────────────────────────────────────
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: cafe-app
+  #   restart: always
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NODE_ENV=production
+  #     - DATABASE_URL=postgres://${DATABASE_USER:-postgres}:${DATABASE_PASSWORD:-password}@db:5432/${DATABASE_NAME:-cafe_db}
+  #     - QDRANT_URL=http://qdrant:6333
+  #     - EMBEDDING_SERVICE_URL=http://embedding:8001
+  #     - LOCAL_LLM_URL=http://llm:11434/v1
+  #     - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-llama3.2:1b}
+  #     - LLM_TYPE=${LLM_TYPE:-kafi}
+  #     - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-your-better-auth-secret}
+  #     - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+  #     # Performance
+  #     - EMBEDDING_BATCH_SIZE=32
+  #     - LLM_CACHE_TTL=300000
+  #     - LLM_CACHE_MAX=100
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 1G
+  #       reservations:
+  #         memory: 256M
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     qdrant:
+  #       condition: service_healthy
+  #     embedding:
+  #       condition: service_healthy
+  #     llm:
+  #       condition: service_healthy
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  ollama_data:
+  tei_cache:

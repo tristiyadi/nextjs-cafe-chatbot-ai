@@ -47,7 +47,7 @@ export default function CartPage() {
             menuItemId: i.menuItemId,
             quantity: i.quantity,
             unitPrice: i.price,
-            subtotal: i.price * i.quantity,
+            subtotal: (i.price ?? 0) * i.quantity,
           })),
           totalAmount: getTotal(),
         }),
@@ -131,7 +131,7 @@ export default function CartPage() {
                             <div className="flex justify-between items-start">
                                <div>
                                   <h4 className="font-black text-xl leading-none mb-1 group-hover:text-primary transition-colors tracking-tight">{item.name}</h4>
-                                  <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Rp {item.price.toLocaleString('id-ID')}</span>
+                                  <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Rp {(item.price ?? 0).toLocaleString('id-ID')}</span>
                                </div>
                                <Button 
                                  variant="ghost" 
@@ -140,7 +140,7 @@ export default function CartPage() {
                                  onClick={() => removeItem(item.id)}
                                >
                                   <Trash2 className="h-5 w-5" />
-                               </Button>
+                                </Button>
                             </div>
                             <div className="flex items-center gap-4 mt-4">
                                <div className="flex items-center gap-2 bg-muted p-1.5 rounded-2xl shadow-inner border border-primary/5">
@@ -162,7 +162,7 @@ export default function CartPage() {
                                      <Plus className="h-4 w-4" />
                                   </Button>
                                </div>
-                               <span className="ml-auto font-black text-2xl tracking-tighter text-foreground/80">Rp {(item.price * item.quantity).toLocaleString('id-ID')}</span>
+                               <span className="ml-auto font-black text-2xl tracking-tighter text-foreground/80">Rp {((item.price ?? 0) * item.quantity).toLocaleString('id-ID')}</span>
                             </div>
                          </div>
                       </div>
@@ -171,7 +171,7 @@ export default function CartPage() {
                   <CardFooter className="bg-primary/5 p-8 flex flex-col gap-3">
                      <div className="flex justify-between w-full">
                         <span className="font-bold text-lg uppercase tracking-widest text-muted-foreground">Total Pesanan</span>
-                        <span className="text-3xl font-black text-primary tracking-tighter">Rp {getTotal().toLocaleString('id-ID')}</span>
+                        <span className="text-3xl font-black text-primary tracking-tighter">Rp {(getTotal() ?? 0).toLocaleString('id-ID')}</span>
                      </div>
                   </CardFooter>
                </Card>

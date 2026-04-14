@@ -11,7 +11,10 @@
     "db:generate": "npx drizzle-kit generate",
     "db:migrate": "npx drizzle-kit migrate",
     "db:studio": "npx drizzle-kit studio",
-    "db:all": "npm run db:generate && npm run db:migrate && npm run seed"
+    "db:all": "npm run db:generate && npm run db:migrate && npm run seed",
+    "generate:training-data": "npx tsx scripts/generate-training-data.ts",
+    "prod:up": "docker compose -f docker-compose.prod.yml up -d --build",
+    "prod:down": "docker compose -f docker-compose.prod.yml down"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
