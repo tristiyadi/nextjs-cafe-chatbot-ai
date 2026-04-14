@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       )
         .map((p) => {
           const payload = p.payload;
-          return `- ${payload?.name}: (Harga: Rp${payload?.price})`;
+          return `- ${payload?.name} (Harga: Rp${payload?.price}) (Ref-ID: ${payload?.menu_item_id})`;
         })
         .join("\n");
 

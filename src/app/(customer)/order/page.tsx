@@ -19,6 +19,7 @@ export default function OrderPage() {
   const [mounted, setMounted] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [activeTab, setActiveTab] = useState("chat");
+  const [isChatFullSize, setIsChatFullSize] = useState(false);
   
   // Use a stable selector for total items to reduce re-renders
   const totalItems = useCart((state) => 
@@ -78,30 +79,40 @@ export default function OrderPage() {
               {totalItems > 0 && (
                  <Link href="/order/cart" className="hidden md:block">
                     <Button variant="secondary" className="rounded-2xl h-12 px-6 font-bold gap-2 shadow-xl shadow-primary/5 animate-in fade-in zoom-in group border-primary/10 bg-white hover:bg-primary hover:text-white transition-all">
-                      Keranjang ({totalItems}) <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                       Keranjang ({totalItems}) <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </Button>
                  </Link>
               )}
            </div>
 
            {/* Layout Wrapper */}
-           <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] lg:grid-cols-[440px_1fr] gap-10">
-              {/* Left Column (Always Chat on Desktop, Tabbed on Mobile) */}
+           <div className={cn(
+              "grid gap-10 transition-all duration-500",
+              isChatFullSize 
+                ? "grid-cols-1" 
+                : "grid-cols-1 md:grid-cols-[320px_1fr] lg:grid-cols-[440px_1fr]"
+           )}>
+              {/* Chat Column (Left on Desktop, Tabbed on Mobile) */}
               <div className={cn(
-                "flex flex-col gap-6",
-                activeTab !== 'chat' && "hidden md:flex"
+                "flex flex-col gap-6 transition-all duration-500",
+                activeTab !== 'chat' && !isChatFullSize && "hidden md:flex",
+                isChatFullSize ? "order-1" : "order-1"
               )}>
                 <div className="hidden md:flex items-center gap-2 px-2 opacity-50">
                    <MessageSquare className="h-4 w-4" />
-                   <span className="text-xs font-bold uppercase tracking-widest">AI Barista Assistant</span>
+                   <span className="text-xs font-bold uppercase tracking-widest">AI Barista Assistant {isChatFullSize && "(Full View)"}</span>
                 </div>
-                <ChatBox />
+                <ChatBox 
+                  isFullSize={isChatFullSize} 
+                  onToggleSize={() => setIsChatFullSize(!isChatFullSize)} 
+                />
               </div>
 
-              {/* Right Column (Always Menu on Desktop, Tabbed on Mobile) */}
+              {/* Menu Column (Right on Desktop, Tabbed on Mobile) */}
               <div className={cn(
-                "flex flex-col gap-6 overflow-hidden",
-                activeTab !== 'menu' && "hidden md:flex"
+                "flex flex-col gap-6 overflow-hidden transition-all duration-500",
+                activeTab !== 'menu' && !isChatFullSize && "hidden md:flex",
+                isChatFullSize ? "order-2" : "order-2"
               )}>
                  <div className="hidden md:flex items-center gap-2 px-2 opacity-50">
                     <Utensils className="h-4 w-4" />

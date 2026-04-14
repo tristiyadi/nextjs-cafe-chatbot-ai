@@ -31,14 +31,36 @@ export async function POST(request: Request) {
 
 async function doSearch(query: string, limit: number) {
   try {
-    // 1. Generate embedding for the query (prepend 'query: ' for E5 models)
+    // 1. Semantic Check (Persona Guard)
+    // We use a quick prompt to check if the query is cafe-related
+    const { getChatResponse } = await import("@/lib/ai");
+    const checkMessage = `Tentukan apakah kueri pencarian ini relevan dengan menu kafe, kopi, makanan, atau bantuan pesanan: "${query}". Jawab hanya dengan "RELEVAN" atau "TIDAK_RELEVAN".`;
+
+    // Using a special check that bypasses context for speed
+    const relevance = await getChatResponse(
+      [],
+      checkMessage,
+      "Sistem Klasifikasi",
+    );
+    const isOutOfContext = relevance.includes("TIDAK_RELEVAN");
+
+    if (isOutOfContext) {
+      return NextResponse.json({ results: [], isOutOfContext: true });
+    }
+
+    // 2. Generate embedding for the query
     const [vector] = await generateEmbeddings([`query: ${query}`]);
 
-    // 2. Search Qdrant for similar menu items
+    // 3. Search Qdrant
     const searchResults = await searchSimilarMenu(vector, limit);
 
-    // 3. Extract IDs from search results
-    const itemIds = (searchResults as Array<{ payload?: Record<string, unknown> }>)
+    // 4. Extract IDs and scores
+    const itemIds = (
+      searchResults as Array<{
+        payload?: Record<string, unknown>;
+        score: number;
+      }>
+    )
       .map((p) => p.payload?.menu_item_id as string)
       .filter(Boolean);
 
@@ -46,7 +68,7 @@ async function doSearch(query: string, limit: number) {
       return NextResponse.json({ results: [] });
     }
 
-    // 4. Fetch full data from PostgreSQL
+    // 5. Fetch full data from PostgreSQL
     const results = await db.query.menuItems.findMany({
       where: inArray(menuItems.id, itemIds),
       with: {
@@ -54,7 +76,7 @@ async function doSearch(query: string, limit: number) {
       },
     });
 
-    // Sort results to match original search ranking
+    // Sort and filter by score threshold (optional but recommended)
     const sortedResults = itemIds
       .map((id) => results.find((item) => item.id === id))
       .filter(Boolean);
