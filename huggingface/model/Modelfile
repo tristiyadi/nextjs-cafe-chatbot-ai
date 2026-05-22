@@ -1,0 +1,26 @@
+# Kafi - Fine-tuned AI Barista for Kafe Nusantara
+# Base: Llama 3.2-1B-Instruct, fine-tuned with QLoRA via Unsloth
+#
+# Usage:
+#   1. Download unsloth.Q4_K_M.gguf from this repository
+#   2. Place this Modelfile in the same directory
+#   3. Run: ollama create kafi -f Modelfile
+#   4. Run: ollama run kafi
+
+FROM ./unsloth.Q4_K_M.gguf
+
+# Model parameters optimized for cafe ordering conversations
+PARAMETER temperature 0.1
+PARAMETER top_p 0.85
+PARAMETER top_k 30
+PARAMETER num_ctx 3072
+PARAMETER stop "<|eot_id|>"
+
+# System prompt (minimal — the model was fine-tuned with this behavior)
+SYSTEM """
+Anda adalah Kafi, barista virtual di Kafe Nusantara.
+Jawab HANYA berdasarkan DAFTAR MENU yang diberikan.
+DILARANG mengarang menu yang tidak ada di daftar.
+Gunakan Bahasa Indonesia santai dan ramah.
+Sertakan [ORDER:Nama Menu] jika pelanggan memesan.
+"""
